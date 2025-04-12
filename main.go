@@ -182,7 +182,12 @@ func main() {
 	nom.Stdout = &nixOut
 
 	err := nom.Run()
+
 	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			os.Exit(1)
+		}
+
 		warn(err)
 
 		nix := exec.Command(
@@ -195,7 +200,11 @@ func main() {
 
 		err = nix.Run()
 		if err != nil {
-			fatal(err)
+			if _, ok := err.(*exec.ExitError); ok {
+				os.Exit(1)
+			} else {
+				fatal(err)
+			}
 		}
 	}
 	
@@ -216,7 +225,7 @@ func main() {
 		
 		err = nvd.Run()
 		if err != nil {
-			warn(err)
+			warnf("Error executing nvd: %v", err)
 		}
 
 		message("Activating configuration...")
@@ -228,7 +237,11 @@ func main() {
 			
 		err = activate.Run()
 		if err != nil {
-			fatal(err)
+			if _, ok := err.(*exec.ExitError); ok {
+				os.Exit(1)
+			} else {
+				fatal(err)
+			}
 		}
 	} else {
 		fmt.Printf("(%s) Password: ", profileData.Remote)
@@ -281,12 +294,12 @@ func main() {
 		err = nix.Run()
 		if err != nil {
 			cleanup()
-			fatal(err)
-		}
-		
-		if nix.ProcessState.ExitCode() != 0 {
-			cleanup()
-			os.Exit(1)
+
+			if _, ok := err.(*exec.ExitError); ok {
+				os.Exit(1)
+			} else {
+				fatal(err)
+			}
 		}
 
 		messagef("Activating configuration on %s...", profileData.Remote)
@@ -313,12 +326,12 @@ func main() {
 		err = ssh.Run()
 		if err != nil {
 			cleanup()
-			fatal(err)
-		}
 
-		if ssh.ProcessState.ExitCode() != 0 {
-			cleanup()
-			os.Exit(1)
+			if _, ok := err.(*exec.ExitError); ok {
+				os.Exit(1)
+			} else {
+				fatal(err)
+			}
 		}
 		
 		cleanup()
