@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/gob"
 	"fmt"
@@ -167,63 +166,39 @@ func main() {
 	message("Building Nixos configuration...")
 
 	
-	nom := exec.Command("nom", "--json")
-	nomIn, errNomIn := nom.StdinPipe()
-	nom.Stdout = os.Stdout
-	nom.Stderr = os.Stderr
-	err := nom.Start()
-
 	flakeRef := fmt.Sprintf(
 		"%s#nixosConfigurations.%s.config.system.build.toplevel",
 		profileData.Flake, profileData.Hostname,
 	)
-	var nix *exec.Cmd
-	if err == nil {
-		nix = exec.Command(
+	
+	var nixOut bytes.Buffer
+	
+	nom := exec.Command(
+		"nom", "build",
+		"--no-link", "--print-out-paths",
+		flakeRef,
+	)
+	nom.Stderr = os.Stderr
+	nom.Stdout = &nixOut
+
+	err := nom.Run()
+	if err != nil {
+		warn(err)
+
+		nix := exec.Command(
 			"nix", "build",
-			"--log-format", "internal-json", "--verbose",
 			"--no-link", "--print-out-paths",
 			flakeRef,
 		)
-		
-		nixErr, errNixErr := nix.StderrPipe()
-		if errNomIn == nil && errNixErr == nil {
-			go func() {
-				scanner := bufio.NewScanner(bufio.NewReader(nixErr))
-				for scanner.Scan() {
-					nomIn.Write(scanner.Bytes())
-				}
-				
-				nomIn.Close()
-			}()
-		} else {
-			warnf("Failed to open pipes for nix-output-monitor: %v, %v", errNomIn, errNixErr)
-
-			nix.Stderr = os.Stderr
-		}
-	} else {
-		warn(err)
-
-		nix = exec.Command("nix", "build", "--no-link", "--print-out-paths", flakeRef)
 		nix.Stderr = os.Stderr
-	}
+		nix.Stdout = &nixOut
 
-	var nixOut bytes.Buffer
-	nix.Stdout = &nixOut
-
-	err = nix.Run()
-	if err != nil {
-		fatal(err)
+		err = nix.Run()
+		if err != nil {
+			fatal(err)
+		}
 	}
 	
-	err = nom.Wait()
-	if err != nil {
-		warn(err)
-	}
-
-	if nix.ProcessState.ExitCode() != 0 {
-		os.Exit(1)
-	}
 	outPath := strings.TrimRight(nixOut.String(), "\n")
 
 
@@ -294,7 +269,7 @@ func main() {
 
 		messagef("Copying configuration to %s...", profileData.Remote)
 
-		nix = exec.Command(
+		nix := exec.Command(
 			"nix", "copy",
 			"--to", fmt.Sprintf("ssh-ng://%s", profileData.Remote),
 			"--no-check-sigs",
