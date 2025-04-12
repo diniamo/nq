@@ -1,0 +1,23 @@
+* Rebuild
+
+A convenience program for rebuilding on NixOS.
+
+** Features
+
+*Multiple profiles*: each time you run this program, you must specify a profile, unless there is a default one saved (to save one, specify it, and pass the ~-s~ / ~--save-default~ flag with it). The rest of the flags only have to be specified, if you want to use flags different from the ones saved for that profile. If you specify a different value for a flag from what is saved, the saved value will be automatically updated.
+
+*Remote deployment*: profiles may have a remote set. In which case the built configuration will be activated on that remote, instead of locally.
+
+** Building / Running
+
+To build, run:
+
+#+BEGIN_SRC sh
+go build main.go
+#+END_SRC
+
+then run the resulting executable file, or run directly with:
+
+#+BEGIN_SRC sh
+go run main.go
+#+END_SRC
