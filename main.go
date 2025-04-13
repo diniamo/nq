@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/adrg/xdg"
 	"github.com/akamensky/argparse"
@@ -22,6 +24,9 @@ const fgGreen = "\033[32m"
 const bold = "\033[1m"
 
 const reset = "\033[0m"
+
+
+var exitHook func()
 
 
 type Profile struct {
@@ -62,7 +67,7 @@ func errorf(format string, a ...any) {
 
 func fatal(message any) {
 	fmt.Fprintf(os.Stderr, "%s%s%v%s\n", fgRed, bold, message, reset)
-	os.Exit(1)
+	exit(1)
 }
 
 func fatalf(format string, a ...any) {
@@ -101,6 +106,26 @@ func saveData(path string, data Data) {
 	} else {
 		warn(err)
 	}
+}
+
+func exit(code int) {
+	if exitHook != nil {
+		exitHook()
+	}
+
+	os.Exit(code)
+}
+
+func trapExit(callback func()) {
+	exitHook = callback
+
+	sig := make(chan os.Signal)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+        <-sig
+		callback()
+    }()
 }
 
 func main() {
@@ -185,7 +210,7 @@ func main() {
 
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			os.Exit(1)
+			exit(1)
 		}
 
 		warn(err)
@@ -201,7 +226,7 @@ func main() {
 		err = nix.Run()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				os.Exit(1)
+				exit(1)
 			} else {
 				fatal(err)
 			}
@@ -238,7 +263,7 @@ func main() {
 		err = activate.Run()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				os.Exit(1)
+				exit(1)
 			} else {
 				fatal(err)
 			}
@@ -257,30 +282,42 @@ func main() {
 		}
 		scriptPath := scriptFile.Name()
 
-		cleanup := func() {
+		trapExit(func() {
+			scriptFile.Close()
 			err = os.Remove(scriptPath)
 			if err != nil {
-				errorf("%s could not be removed, which is a major security risk. Remove it as soon as possible!", scriptPath)
+				errorf("%v\n%s could not be removed, which is a major security risk. Remove it as soon as possible!", err, scriptPath)
 			}
-		}
+		})
+
+		singleQuote := []byte{'\''}
+		escapedPassword := bytes.ReplaceAll(password, singleQuote, []byte{'\\', '\''})
 
 		_, err = scriptFile.WriteString("#!/bin/sh\nprintf '%s' '")
 		if err != nil {
-			cleanup()
 			fatal(err)
 		}
-		_, err = scriptFile.Write(password)
+		_, err = scriptFile.Write(escapedPassword)
 		if err != nil {
-			cleanup()
 			fatal(err)
 		}
-		_, err = scriptFile.Write([]byte{'\''})
+		_, err = scriptFile.Write(singleQuote)
 		if err != nil {
-			cleanup()
+			fatal(err)
+		}
+
+		scriptFile.Close()
+		err = os.Chmod(scriptPath, 0500)
+		if err != nil {
 			fatal(err)
 		}
 
 		messagef("Copying configuration to %s...", profileData.Remote)
+
+		sshEnv := append(
+			os.Environ(),
+			fmt.Sprintf("SSH_ASKPASS=%s", scriptPath), "SSH_ASKPASS_REQUIRE=force",
+		)
 
 		nix := exec.Command(
 			"nix", "copy",
@@ -288,15 +325,16 @@ func main() {
 			"--no-check-sigs",
 			outPath,
 		)
+
+		nix.Env = sshEnv
+
 		nix.Stdout = os.Stdout
 		nix.Stderr = os.Stderr
 
 		err = nix.Run()
 		if err != nil {
-			cleanup()
-
 			if _, ok := err.(*exec.ExitError); ok {
-				os.Exit(1)
+				exit(1)
 			} else {
 				fatal(err)
 			}
@@ -306,34 +344,36 @@ func main() {
 
 		ssh := exec.Command(
 			"ssh", profileData.Remote,
-			fmt.Sprintf("sudo --prompt='' --stdin -- /bin/sh -c '%s'", activationCommand),
+			fmt.Sprintf("sudo --prompt= --stdin -- /bin/sh -c '%s'", activationCommand),
 		)
 		
-		ssh.Env = append(
-			os.Environ(),
-			fmt.Sprintf("SSH_ASKPASS=%s", scriptPath), "SSH_ASKPASS_REQUIRE=force",
-		)
+		ssh.Env = sshEnv
 		
 		sshIn, err := ssh.StdinPipe()
 		if err != nil {
-			cleanup()
 			fatal(err)
 		}
-		sshIn.Write(password)
 		ssh.Stdout = os.Stdout
 		ssh.Stderr = os.Stderr
 
-		err = ssh.Run()
+		err = ssh.Start()
 		if err != nil {
-			cleanup()
+			fatal(err)
+		}
 
+		sshIn.Write(password)
+		sshIn.Write([]byte{'\n'})
+
+		err = ssh.Wait()
+		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				os.Exit(1)
+				exit(1)
 			} else {
 				fatal(err)
 			}
 		}
-		
-		cleanup()
 	}
+
+	// Call exitHook
+	exit(0)
 }
