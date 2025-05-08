@@ -4,7 +4,7 @@ buildGoModule {
   version = "0-unstable-${commit}";
 
   src = lib.cleanSource ./.;
-  vendorHash = "sha256-Qlmz9lyx8K7cTc6Xgbyv7fqqhxVyQWSMygAmhPXHUTE=";
+  vendorHash = "sha256-M3w80FoM5ak5YtuW5PaB4t47unTC/OXS99Sk3/C7dtg=";
 
   nativeBuildInputs = [makeBinaryWrapper];
 
