@@ -24,7 +24,7 @@ var exitHook func()
 
 type Profile struct {
 	Flake string
-	Hostname string
+	Configuration string
 	Remote string
 }
 
@@ -155,9 +155,9 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		profileData.Flake = flake
 		updateProfile = true
 	}
-	hostname := cmd.String("hostname")
-	if hostname != "" {
-		profileData.Hostname = hostname
+	configuration := cmd.String("configuration")
+	if configuration != "" {
+		profileData.Configuration = configuration
 		updateProfile = true
 	}
 	remote := cmd.String("remote")
@@ -169,8 +169,8 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if profileData.Flake == "" {
 		return &RunError{"Missing flake"}
 	}
-	if profileData.Hostname == "" {
-		return &RunError{"Missing hostname"}
+	if profileData.Configuration == "" {
+		return &RunError{"Missing configuration"}
 	}
 
 
@@ -184,7 +184,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	
 	flakeRef := fmt.Sprintf(
 		"%s#nixosConfigurations.%s.config.system.build.toplevel",
-		profileData.Flake, profileData.Hostname,
+		profileData.Flake, profileData.Configuration,
 	)
 	
 	var nixOut bytes.Buffer
@@ -405,7 +405,7 @@ func main() {
 			Name: "configuration",
 			Usage: "the NixOS configuration to build",
 			Aliases: []string{"c"},
-			Value: profile.Hostname,
+			Value: profile.Configuration,
 		},
 		&cli.StringFlag{
 			Name: "remote",
