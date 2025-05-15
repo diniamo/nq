@@ -33,11 +33,6 @@ type Data struct {
 	Profiles map[string]Profile
 }
 
-type State struct {
-	dataPath string
-	data Data
-}
-
 type RunError struct {
 	message string
 }
@@ -133,39 +128,56 @@ func trapExit(callback func()) {
 }
 
 func run(ctx context.Context, cmd *cli.Command) error {
-	state := ctx.Value("state").(State)
-	data := state.data
+	dataPath := path.Join(xdg.DataHome, "rebuild-profiles.gob")
+	data := loadData(dataPath)
 			
-	updateDefault := false
-	updateProfile := false
+	save := false
 
 
-	profile := cmd.StringArg("profile")
-	if profile != "" {
-		updateDefault = data.DefaultProfile == "" || cmd.Bool("save-default")
+	var profile string
+	if passedProfile := cmd.StringArg("profile"); passedProfile != "" {
+		profile = passedProfile
+		
+		if data.DefaultProfile == "" || cmd.Bool("save-default") {
+			data.DefaultProfile = profile
+			save = true
+		}
 	} else {
-		return &RunError{"Missing profile"}
+		if data.DefaultProfile != "" {
+			profile = data.DefaultProfile
+		} else {
+			return &RunError{"Missing profile"}
+		}
 	}
 
 	
 	profileData := data.Profiles[profile]
+	updateProfile := false
 
 	flake := cmd.String("flake")
 	if flake != "" {
 		profileData.Flake = flake
 		updateProfile = true
+	} else {
+		flake = profileData.Flake
 	}
+
 	configuration := cmd.String("configuration")
 	if configuration != "" {
 		profileData.Configuration = configuration
 		updateProfile = true
+	} else {
+		configuration = profileData.Configuration
 	}
+	
 	remote := cmd.String("remote")
 	if remote != "" {
 		profileData.Remote = remote
 		updateProfile = true
+	} else {
+		remote = profileData.Remote
 	}
-
+	
 	if profileData.Flake == "" {
 		return &RunError{"Missing flake"}
 	}
@@ -173,10 +185,13 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return &RunError{"Missing configuration"}
 	}
 
+	if updateProfile {
+		data.Profiles[profile] = profileData
+		save = true
+	}
 
-	if updateDefault { data.DefaultProfile = profile }
-	if updateProfile { data.Profiles[profile] = profileData }
-	if updateDefault || updateProfile { saveData(state.dataPath, data) }
+
+	if save { saveData(dataPath, data) }
 
 
 	msg("Building Nixos configuration...")
@@ -369,22 +384,11 @@ func run(ctx context.Context, cmd *cli.Command) error {
 }
 
 func main() {
-	dataPath := path.Join(xdg.DataHome, "rebuild-profiles.gob")
-	data := loadData(dataPath)
-
 	cmd := cli.Command{
 		Name: "rebuild",
 		Usage: "a convenience program for rebuilding on NixOS",
 		Action: run,
-	}
-	
-	var profile Profile
-	if data.DefaultProfile != "" {
-		profile = data.Profiles[data.DefaultProfile]
-		
-		cmd.ArgsUsage = fmt.Sprintf("<profile (default: \"%s\")>", data.DefaultProfile)
-	} else {
-		cmd.ArgsUsage = "<profile>"
+		ArgsUsage: "<profile>",
 	}
 
 	cmd.Flags = []cli.Flag{
@@ -399,32 +403,26 @@ func main() {
 			Name: "flake",
 			Usage: "the path of the flake to use",
 			Aliases: []string{"f"},
-			Value: profile.Flake,
 		},
 		&cli.StringFlag{
 			Name: "configuration",
 			Usage: "the NixOS configuration to build",
 			Aliases: []string{"c"},
-			Value: profile.Configuration,
 		},
 		&cli.StringFlag{
 			Name: "remote",
 			Usage: "the remote to deploy the built configuration to",
 			Aliases: []string{"r"},
-			Value: profile.Remote,
 		},
 	}
 	cmd.Arguments = []cli.Argument{
 		&cli.StringArg{
 			Name: "profile",
 			UsageText: "the profile to act on",
-			Value: data.DefaultProfile,
 		},
 	}
 
-	ctx := context.WithValue(context.Background(), "state", State{dataPath, data})
-
-	if err := cmd.Run(ctx, os.Args); err != nil {
+	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		color.New(color.FgRed, color.Bold).Fprintln(os.Stderr, err)
 		exit(1)
 	}
