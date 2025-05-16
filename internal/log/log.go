@@ -40,3 +40,12 @@ func Errorf(format string, a ...any) {
 	ErrorColor.Fprintf(os.Stderr, format, a...)
 	fmt.Fprintln(os.Stderr)
 }
+
+func Fatal(message any) {
+	FatalColor.Fprintln(os.Stderr, message)
+}
+
+func Fatalf(format string, a ...any) {
+	FatalColor.Fprintf(os.Stderr, format, a...)
+	fmt.Fprintln(os.Stderr)
+}

@@ -11,11 +11,11 @@ import (
 	"path"
 	"strings"
 
+	"github.com/diniamo/rebuild/internal/external"
 	"github.com/diniamo/rebuild/internal/log"
 	"github.com/diniamo/rebuild/internal/trap"
 
 	"github.com/adrg/xdg"
-	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )
@@ -134,7 +134,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if save { saveData(dataPath, data) }
 
 
-	log.Message("Building Nixos configuration...")
+	log.Messagef("Building %s#%s", flake, configuration)
 
 	
 	flakeRef := fmt.Sprintf(
@@ -183,14 +183,14 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 
 	if profileData.Remote == "" {
-		log.Message("Comparing changes...")
+		log.Message("Comparing changes")
 
 		err = external.Nvd("/run/current-system", outPath)
 		if err != nil {
-			log.Warnf("Error executing nvd: %v", err)
+			log.Warnf("nvd: %s", err)
 		}
 
-		log.Message("Activating configuration...")
+		log.Message("Activating configuration")
 
 		external.ActivateLocal(outPath)
 	} else {
@@ -237,16 +237,16 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 
-		log.Messagef("Copying configuration to %s...", profileData.Remote)
+		log.Messagef("Copying configuration to %s", profileData.Remote)
 
 		sshEnv := append(
 			os.Environ(),
-			fmt.Sprintf("SSH_ASKPASS=%s", scriptPath), "SSH_ASKPASS_REQUIRE=force",
+			"SSH_ASKPASS=" + scriptPath, "SSH_ASKPASS_REQUIRE=force",
 		)
 
 		nix := exec.Command(
 			"nix", "copy",
-			"--to", fmt.Sprintf("ssh-ng://%s", profileData.Remote),
+			"--to", "ssh-ng://%s" + profileData.Remote,
 			"--no-check-sigs",
 			outPath,
 		)
@@ -265,11 +265,14 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 
-		log.Messagef("Activating configuration on %s...", profileData.Remote)
+		log.Messagef("Activating configuration on %s", profileData.Remote)
 
 		ssh := exec.Command(
 			"ssh", profileData.Remote,
-			fmt.Sprintf("sudo --prompt= --stdin -- /bin/sh -c '%s'", activationCommand),
+			fmt.Sprintf(
+				"sudo --prompt= --stdin -- /bin/sh -c '%s'",
+				external.ActivationCommand(outPath),
+			),
 		)
 		
 		ssh.Env = sshEnv
@@ -342,7 +345,7 @@ func main() {
 	}
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
-		color.New(color.FgRed, color.Bold).Fprintln(os.Stderr, err)
+		log.Fatal(err)
 		trap.Exit(1)
 	}
 
