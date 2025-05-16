@@ -295,7 +295,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		err = ssh.Wait()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				return errors.New("ssh(nix-env/switch-to-configuration): non-zero exit code")
+				return errors.New("ssh/switch-to-configuration/nix-env: non-zero exit code")
 			} else {
 				return err
 			}

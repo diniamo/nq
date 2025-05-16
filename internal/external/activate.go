@@ -9,7 +9,7 @@ import (
 
 func ActivationCommand(path string) string {
 	return fmt.Sprintf(
-		"nix-env --profile /nix/var/nix/profiles/system --set %s && %s/bin/switch-to-configuration switch",
+		"%s/bin/switch-to-configuration switch && nix-env --profile /nix/var/nix/profiles/system --set %s",
 		path, path,
 	)
 }
@@ -25,7 +25,7 @@ func ActivateLocal(path string) error {
 	err := activate.Run()
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			return errors.New("nix-env/switch-to-configuration: non-zero exit code")
+			return errors.New("switch-to-configuration/nix-env: non-zero exit code")
 		} else {
 			return err
 		}
