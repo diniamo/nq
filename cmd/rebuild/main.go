@@ -4,22 +4,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path"
 	"strings"
-	"syscall"
+
+	"github.com/diniamo/rebuild/internal/log"
+	"github.com/diniamo/rebuild/internal/trap"
 
 	"github.com/adrg/xdg"
 	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 )
-
-
-var exitHook func()
 
 
 type Profile struct {
@@ -31,47 +30,6 @@ type Profile struct {
 type Data struct {
 	DefaultProfile string
 	Profiles map[string]Profile
-}
-
-type RunError struct {
-	message string
-}
-func (e *RunError) Error() string {
-	return e.message
-}
-
-
-var messagePrefixColor = color.New(color.FgGreen)
-var warnColor = color.New(color.FgYellow)
-var errorColor = color.New(color.FgRed)
-
-func msg(message any) {
-	messagePrefixColor.Fprint(os.Stderr, "> ")
-	fmt.Fprintln(os.Stderr, message)
-}
-
-func msgf(format string, a ...any) {
-	messagePrefixColor.Fprint(os.Stderr, "> ")
-	fmt.Fprintf(os.Stderr, format, a...)
-	fmt.Fprintln(os.Stderr)
-}
-
-func warn(message any) {
-	warnColor.Fprintln(os.Stderr, message)
-}
-
-func warnf(format string, a ...any) {
-	warnColor.Fprintf(os.Stderr, format, a...)
-	fmt.Fprintln(os.Stderr)
-}
-
-func err(message any) {
-	errorColor.Fprintln(os.Stderr, message)
-}
-
-func errf(format string, a ...any) {
-	errorColor.Fprintf(os.Stderr, format, a...)
-	fmt.Fprintln(os.Stderr)
 }
 
 
@@ -101,31 +59,13 @@ func saveData(path string, data Data) {
 		encoder := gob.NewEncoder(file)
 		err = encoder.Encode(data)
 		if err != nil {
-			warn(err)
+			log.Warn(err)
 		}
 	} else {
-		warn(err)
+		log.Warn(err)
 	}
 }
 
-func exit(code int) {
-	if exitHook != nil {
-		exitHook()
-	}
-
-	os.Exit(code)
-}
-
-func trapExit(callback func()) {
-	exitHook = callback
-
-	sig := make(chan os.Signal, 1)
-	go func() {
-        <-sig
-		callback()
-    }()
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
-}
 
 func run(ctx context.Context, cmd *cli.Command) error {
 	dataPath := path.Join(xdg.DataHome, "rebuild-profiles.gob")
@@ -146,7 +86,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		if data.DefaultProfile != "" {
 			profile = data.DefaultProfile
 		} else {
-			return &RunError{"Missing profile"}
+			return errors.New("Missing profile")
 		}
 	}
 
@@ -179,10 +119,10 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 	
 	if profileData.Flake == "" {
-		return &RunError{"Missing flake"}
+		return errors.New("Missing flake")
 	}
 	if profileData.Configuration == "" {
-		return &RunError{"Missing configuration"}
+		return errors.New("Missing configuration")
 	}
 
 	if updateProfile {
@@ -194,7 +134,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if save { saveData(dataPath, data) }
 
 
-	msg("Building Nixos configuration...")
+	log.Message("Building Nixos configuration...")
 
 	
 	flakeRef := fmt.Sprintf(
@@ -216,10 +156,10 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			exit(1)
+			trap.Exit(1)
 		}
 
-		warn(err)
+		log.Warn(err)
 
 		nix := exec.Command(
 			"nix", "build",
@@ -232,7 +172,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		err = nix.Run()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				return &RunError{}
+				return errors.New("nix: non-zero exit code")
 			} else {
 				return err
 			}
@@ -248,7 +188,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	)
 
 	if profileData.Remote == "" {
-		msg("Comparing changes...")
+		log.Message("Comparing changes...")
 
 		nvd := exec.Command("nvd", "diff", "/run/current-system", outPath)
 		nvd.Stdout = os.Stdout
@@ -256,10 +196,10 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		
 		err = nvd.Run()
 		if err != nil {
-			warnf("Error executing nvd: %v", err)
+			log.Warnf("Error executing nvd: %v", err)
 		}
 
-		msg("Activating configuration...")
+		log.Message("Activating configuration...")
 
 		activate := exec.Command("sudo", "--", "/bin/sh", "-c", activationCommand)
 		activate.Stdin = os.Stdin
@@ -269,7 +209,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		err = activate.Run()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				return &RunError{}
+				return errors.New("nix-env/switch-to-configuration: non-zero exit code")
 			} else {
 				return err
 			}
@@ -288,11 +228,11 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		}
 		scriptPath := scriptFile.Name()
 
-		trapExit(func() {
+		trap.TrapExit(func() {
 			scriptFile.Close()
 			err = os.Remove(scriptPath)
 			if err != nil {
-				errf("%v\n%s could not be removed, which is a major security risk. Remove it as soon as possible!", err, scriptPath)
+				log.Errorf("%v\n%s could not be removed, which is a major security risk. Remove it as soon as possible!", err, scriptPath)
 			}
 		})
 
@@ -318,7 +258,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 
-		msgf("Copying configuration to %s...", profileData.Remote)
+		log.Messagef("Copying configuration to %s...", profileData.Remote)
 
 		sshEnv := append(
 			os.Environ(),
@@ -340,13 +280,13 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		err = nix.Run()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				return &RunError{}
+				return errors.New("nix: non-zero exit-code")
 			} else {
 				return err
 			}
 		}
 
-		msgf("Activating configuration on %s...", profileData.Remote)
+		log.Messagef("Activating configuration on %s...", profileData.Remote)
 
 		ssh := exec.Command(
 			"ssh", profileData.Remote,
@@ -373,7 +313,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		err = ssh.Wait()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
-				return &RunError{}
+				return errors.New("ssh(nix-env/switch-to-configuration): non-zero exit code")
 			} else {
 				return err
 			}
@@ -424,8 +364,9 @@ func main() {
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		color.New(color.FgRed, color.Bold).Fprintln(os.Stderr, err)
-		exit(1)
+		trap.Exit(1)
 	}
 
-	exit(0)
+	// Call exit hook
+	trap.Exit(0)
 }
