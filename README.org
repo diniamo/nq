@@ -1,23 +1,32 @@
-* Rebuild
+* Swich
 
-A convenience program for rebuilding on NixOS.
+A set of convenience programs for configuration switching on NixOS.
 
-** Features
+Note that this only works with flakes.
 
-*Multiple profiles*: each time you run this program, you must specify a profile, unless there is a default one saved (to save one, specify it, and pass the ~-s~ / ~--save-default~ flag with it). The rest of the flags only have to be specified, if you want to use flags different from the ones saved for that profile. If you specify a different value for a flag from what is saved, the saved value will be automatically updated.
+** ~rebuild~ command
 
-*Remote deployment*: profiles may have a remote set. In which case the built configuration will be activated on that remote, instead of locally.
+Extra features:
+- *Multiple profiles*: each time you run this program, you must specify a profile, unless there is a default one saved (to save one, specify it, and pass the ~-s~ / ~--save-default~ flag). The rest of the flags only have to be specified, if you want to use flags different from the ones saved for that profile. If you specify a different value for a flag from what is saved, the saved value will be automatically updated.
+- *Remote deployment*: profiles may have a remote set. In which case the built configuration will be activated on that remote, instead of locally.
+
+** ~rollback~ command
+
+- Switch to any generation still in your store
+- No-nonsense, the switch happens with 1 simple command
 
 ** Building / Running
 
-To build, run:
+To build, run one of:
 
 #+BEGIN_SRC sh
-go build main.go
+go build cmd/rebuild/main.go
+go build cmd/rollback/main.go  
 #+END_SRC
 
-then run the resulting executable file, or run directly with:
+then run the resulting executable file, or run directly with one of:
 
 #+BEGIN_SRC sh
-go run main.go
+go run cmd/rebuild/main.go
+go run cmd/rollback/main.go  
 #+END_SRC

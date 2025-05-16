@@ -1,6 +1,6 @@
 {buildGoModule, commit, lib, makeBinaryWrapper, nix-output-monitor, nvd}:
 buildGoModule {
-  pname = "rebuild";
+  pname = "swich";
   version = "0-unstable-${commit}";
 
   src = lib.cleanSource ./.;
@@ -16,11 +16,13 @@ buildGoModule {
   postFixup = ''
     wrapProgram $out/bin/rebuild \
       --prefix PATH : ${lib.makeBinPath [nix-output-monitor nvd]}
+    wrapProgram $out/bin/rollback \
+      --prefix PATH : ${nvd}/bin
   '';
 
   meta = {
-    description = "A convenience program for rebuilding on NixOS";
-    homepage = "https://github.com/diniamo/rebuild";
+    description = "A set of convenience programs for configuration switching on NixOS";
+    homepage = "https://github.com/diniamo/swich";
     license = lib.licenses.eupl12;
     platforms = lib.platforms.linux;
     maintainers = [lib.maintainers.diniamo];

@@ -1,4 +1,4 @@
-module github.com/diniamo/rebuild
+module github.com/diniamo/swich
 
 go 1.23.4
 

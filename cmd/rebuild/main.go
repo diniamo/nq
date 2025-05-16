@@ -11,9 +11,9 @@ import (
 	"path"
 	"strings"
 
-	"github.com/diniamo/rebuild/internal/external"
-	"github.com/diniamo/rebuild/internal/log"
-	"github.com/diniamo/rebuild/internal/trap"
+	"github.com/diniamo/swich/internal/external"
+	"github.com/diniamo/swich/internal/log"
+	"github.com/diniamo/swich/internal/trap"
 
 	"github.com/adrg/xdg"
 	"github.com/urfave/cli/v3"
@@ -68,7 +68,7 @@ func saveData(path string, data Data) {
 
 
 func run(ctx context.Context, cmd *cli.Command) error {
-	dataPath := path.Join(xdg.DataHome, "rebuild-profiles.gob")
+	dataPath := path.Join(xdg.DataHome, "swich-profiles.gob")
 	data := loadData(dataPath)
 			
 	save := false
