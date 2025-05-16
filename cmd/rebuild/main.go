@@ -182,38 +182,17 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	outPath := strings.TrimRight(nixOut.String(), "\n")
 
 
-	activationCommand := fmt.Sprintf(
-		"nix-env --profile /nix/var/nix/profiles/system --set %s && %s/bin/switch-to-configuration switch",
-		outPath, outPath,
-	)
-
 	if profileData.Remote == "" {
 		log.Message("Comparing changes...")
 
-		nvd := exec.Command("nvd", "diff", "/run/current-system", outPath)
-		nvd.Stdout = os.Stdout
-		nvd.Stderr = os.Stderr
-		
-		err = nvd.Run()
+		err = external.Nvd("/run/current-system", outPath)
 		if err != nil {
 			log.Warnf("Error executing nvd: %v", err)
 		}
 
 		log.Message("Activating configuration...")
 
-		activate := exec.Command("sudo", "--", "/bin/sh", "-c", activationCommand)
-		activate.Stdin = os.Stdin
-		activate.Stdout = os.Stdout
-		activate.Stderr = os.Stderr
-			
-		err = activate.Run()
-		if err != nil {
-			if _, ok := err.(*exec.ExitError); ok {
-				return errors.New("nix-env/switch-to-configuration: non-zero exit code")
-			} else {
-				return err
-			}
-		}
+		external.ActivateLocal(outPath)
 	} else {
 		fmt.Printf("(%s) Password: ", profileData.Remote)
 		password, err := term.ReadPassword(int(os.Stdin.Fd()))
