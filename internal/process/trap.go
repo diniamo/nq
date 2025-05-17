@@ -1,4 +1,4 @@
-package trap
+package process
 
 import (
 	"os"

@@ -2,36 +2,50 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/diniamo/nq/internal/external"
-	"github.com/diniamo/nq/internal/generations"
 	"github.com/diniamo/nq/internal/log"
+	"github.com/diniamo/nq/internal/profiles"
 
 	"github.com/urfave/cli/v3"
 )
 
 
 func run(ctx context.Context, cmd *cli.Command) error {
+	var err error
+	
+	p := profiles.NewProfiles(profiles.SystemProfiles, "system")
+	
+	err = p.Populate()
+	if err != nil {
+		return errors.New("Failed to get system profiles: " + err.Error())
+	}
+
+	p.ReverseSort()
+
 	if cmd.Bool("list") {
-		generations.Print()
+		err = p.Print()
+		if err != nil {
+			return err
+		}
+		
 		return nil
 	}
 
-	var err error
-
-	cur, err := generations.Current()
+	cur, err := p.Current()
 	if err != nil {
 		return err
 	}
 	
-	to := generations.Generation(cmd.Int("to"))
+	to := profiles.Profile(cmd.Int("to"))
 	// HACK: is 0 a valid generation? I don't know how to check.
 	if to == 0 {
 		to = -1
 	}
 	if to < 0 {
-		to, err = generations.Previous(cur, -int(to))
+		to, err = p.Previous(cur, -int(to))
 		if err != nil {
 			return err
 		}
@@ -39,12 +53,12 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 	log.Messagef("%d -> %d", cur, to)
 
-	curPath, err := generations.OutPath(cur)
+	curPath, err := p.OutPath(cur)
 	if err != nil {
 		return err
 	}
 
-	newPath, err := generations.OutPath(to)
+	newPath, err := p.OutPath(to)
 	if err != nil {
 		return err
 	}
@@ -68,7 +82,7 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name: "list",
-				Usage: "list available generations instead of rolling back",
+				Usage: "list available profiles instead of rolling back",
 				Aliases: []string{"l"},
 				HideDefault: true,
 			},

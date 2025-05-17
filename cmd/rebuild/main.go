@@ -14,7 +14,7 @@ import (
 
 	"github.com/diniamo/nq/internal/external"
 	"github.com/diniamo/nq/internal/log"
-	"github.com/diniamo/nq/internal/trap"
+	"github.com/diniamo/nq/internal/process"
 
 	"github.com/adrg/xdg"
 	"github.com/urfave/cli/v3"
@@ -191,7 +191,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			trap.Exit(1)
+			process.Exit(1)
 		}
 
 		log.Warnf("Failed to run nom: %s", err)
@@ -239,7 +239,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		}
 		scriptPath := scriptFile.Name()
 
-		trap.TrapExit(func() {
+		process.TrapExit(func() {
 			scriptFile.Close()
 			err = os.Remove(scriptPath)
 			if err != nil {
@@ -384,9 +384,9 @@ func main() {
 
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
-		trap.Exit(1)
+		process.Exit(1)
 	}
 
 	// Call exit hook
-	trap.Exit(0)
+	process.Exit(0)
 }
