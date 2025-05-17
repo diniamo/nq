@@ -1,5 +1,5 @@
 {
-  description = "A set of convenience programs for configuration switching on NixOS";
+  description = "A set of convenience programs for NixOS";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -27,7 +27,7 @@
       };
     in {
       default = package;
-      swich = package;
+      nq = package;
     });
   };
 }

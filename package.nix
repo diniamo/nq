@@ -1,6 +1,6 @@
 {buildGoModule, commit, lib, makeBinaryWrapper, nix-output-monitor, nvd}:
 buildGoModule {
-  pname = "swich";
+  pname = "nq";
   version = "0-unstable-${commit}";
 
   src = lib.cleanSource ./.;
@@ -21,8 +21,8 @@ buildGoModule {
   '';
 
   meta = {
-    description = "A set of convenience programs for configuration switching on NixOS";
-    homepage = "https://github.com/diniamo/swich";
+    description = "A set of convenience programs for NixOS";
+    homepage = "https://github.com/diniamo/nq";
     license = lib.licenses.eupl12;
     platforms = lib.platforms.linux;
     maintainers = [lib.maintainers.diniamo];

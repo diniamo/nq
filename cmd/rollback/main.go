@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 
-	"github.com/diniamo/swich/internal/external"
-	"github.com/diniamo/swich/internal/generations"
-	"github.com/diniamo/swich/internal/log"
+	"github.com/diniamo/nq/internal/external"
+	"github.com/diniamo/nq/internal/generations"
+	"github.com/diniamo/nq/internal/log"
 
 	"github.com/urfave/cli/v3"
 )

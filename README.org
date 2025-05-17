@@ -1,6 +1,6 @@
-* Swich
+* Nq
 
-A set of convenience programs for configuration switching on NixOS.
+A set of convenience programs for NixOS.
 
 Note that this only works with flakes.
 

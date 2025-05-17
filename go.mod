@@ -1,4 +1,4 @@
-module github.com/diniamo/swich
+module github.com/diniamo/nq
 
 go 1.23.4
 
