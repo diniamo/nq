@@ -70,7 +70,6 @@ func main() {
 	
 	home := os.Getenv("HOME")
 
-	fmt.Println()
 	log.Message("Cleaning user profiles")
 	
 	userProfilesDirectory := filepath.Join(home, profiles.UserProfiles)
@@ -81,7 +80,6 @@ func main() {
 	)
 
 	
-	fmt.Println()
 	log.Message("Cleaning home-manager profiles")
 
 	doRemoveProfiles(
@@ -90,7 +88,6 @@ func main() {
 	)
 
 
-	fmt.Println()
 	log.Message("Cleaning gcroots (.direnv, result)")
 
 	entries, err := os.ReadDir(gcrootsDirectory)
@@ -119,7 +116,6 @@ func main() {
 	}
 
 	
-	fmt.Println()
 	log.Message("Running nix store gc")
 
 	nix := exec.Command("nix", "store", "gc")
