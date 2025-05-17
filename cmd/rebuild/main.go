@@ -25,7 +25,7 @@ import (
 type Profile struct {
 	Flake string
 	Configuration string
-	Remote string
+	TargetHost string
 }
 
 type Data struct {
@@ -115,12 +115,12 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		configuration = profileData.Configuration
 	}
 	
-	remote := cmd.String("remote")
-	if remote != "" {
-		profileData.Remote = remote
+	targetHost := cmd.String("target-host")
+	if targetHost != "" {
+		profileData.TargetHost = targetHost
 		updateProfile = true
 	} else {
-		remote = profileData.Remote
+		targetHost = profileData.TargetHost
 	}
 	
 	if profileData.Flake == "" {
@@ -217,7 +217,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	outPath := strings.TrimRight(nixOut.String(), "\n")
 
 
-	if profileData.Remote == "" {
+	if profileData.TargetHost == "" {
 		log.Message("Comparing changes")
 
 		external.Nvd("/run/current-system", outPath)
@@ -226,7 +226,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 		external.ActivateLocal(outPath)
 	} else {
-		fmt.Printf("(%s) Password: ", profileData.Remote)
+		fmt.Printf("(%s) Password: ", profileData.TargetHost)
 		password, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return err
@@ -269,7 +269,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 
-		log.Messagef("Copying configuration to %s", profileData.Remote)
+		log.Messagef("Copying configuration to %s", profileData.TargetHost)
 
 		sshEnv := append(
 			os.Environ(),
@@ -278,7 +278,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 		nix := exec.Command(
 			"nix", "copy",
-			"--to", "ssh-ng://%s" + profileData.Remote,
+			"--to", "ssh-ng://%s" + profileData.TargetHost,
 			"--no-check-sigs",
 			outPath,
 		)
@@ -297,10 +297,10 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 
-		log.Messagef("Activating configuration on %s", profileData.Remote)
+		log.Messagef("Activating configuration on %s", profileData.TargetHost)
 
 		ssh := exec.Command(
-			"ssh", profileData.Remote,
+			"ssh", profileData.TargetHost,
 			fmt.Sprintf(
 				"sudo --prompt= --stdin -- /bin/sh -c '%s'",
 				external.ActivationCommand(outPath),
@@ -370,9 +370,9 @@ func main() {
 			Aliases: []string{"c"},
 		},
 		&cli.StringFlag{
-			Name: "remote",
+			Name: "target-host",
 			Usage: "the remote to deploy the built configuration to",
-			Aliases: []string{"r"},
+			Aliases: []string{"t"},
 		},
 	}
 	cmd.Arguments = []cli.Argument{
