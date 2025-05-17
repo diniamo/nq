@@ -15,6 +15,14 @@ Extra features:
 - Switch to any generation still in your store
 - No-nonsense, the switch happens with 1 simple command
 
+** ~clean~ command
+
+- Remove
+  - System profiles
+  - User profiles
+  - Home-manager profiles
+  - Gcroots (result, .direnv)
+
 ** Building / Running
 
 To build, run one of:

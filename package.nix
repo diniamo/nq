@@ -11,6 +11,7 @@ buildGoModule {
   subPackages = [
     "cmd/rebuild"
     "cmd/rollback"
+    "cmd/clean"
   ];
 
   postFixup = ''
