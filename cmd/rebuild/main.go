@@ -64,10 +64,10 @@ func saveData(path string, data Data) {
 		encoder := gob.NewEncoder(file)
 		err = encoder.Encode(data)
 		if err != nil {
-			log.Warn(err)
+			log.Errorf("Failed to encode/write the save data: %s", err)
 		}
 	} else {
-		log.Warn(err)
+		log.Errorf("Failed to create/open the save file: %s", err)
 	}
 }
 
@@ -194,7 +194,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			trap.Exit(1)
 		}
 
-		log.Warn(err)
+		log.Warnf("Failed to run nom: %s", err)
 
 		nix := exec.Command(
 			"nix", "build",
@@ -220,10 +220,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if profileData.Remote == "" {
 		log.Message("Comparing changes")
 
-		err = external.Nvd("/run/current-system", outPath)
-		if err != nil {
-			log.Warnf("nvd: %s", err)
-		}
+		external.Nvd("/run/current-system", outPath)
 
 		log.Message("Activating configuration")
 
