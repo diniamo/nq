@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -31,6 +32,10 @@ type Data struct {
 	DefaultProfile string
 	Profiles map[string]Profile
 }
+
+
+//go:embed repl.nix
+var replNix string
 
 
 func loadData(path string) (ret Data) {
@@ -132,6 +137,36 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 
 	if save { saveData(dataPath, data) }
+
+
+	if cmd.Bool("repl") {
+		replacer := strings.NewReplacer(
+			"@flake@", flake,
+			"@configuration@", configuration,
+
+			"@blue@", "\033[34;1m",
+			"@reset@", "\033[0m",
+			"@bold@", "\033[1m",
+			"@attention@", "\033[35;1m",
+		)
+		replReplaced := replacer.Replace(replNix)
+
+		nix := exec.Command("nix", "repl", "--impure", "--expr", replReplaced)
+		nix.Stdin = os.Stdin
+		nix.Stdout = os.Stdout
+		nix.Stderr = os.Stderr
+		
+		err := nix.Run()
+		if err != nil {
+			if _, ok := err.(*exec.ExitError); ok {
+				return errors.New("nix: non-zero exit code")
+			} else {
+				return err
+			}
+		}
+
+		return nil
+	}
 
 
 	log.Messagef("Building %s#%s", flake, configuration)
@@ -316,8 +351,14 @@ func main() {
 	cmd.Flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name: "save-default",
-			Usage: "whether to use the selected profile by default on subsequent runs",
+			Usage: "use the selected profile by default on subsequent runs",
 			Aliases: []string{"s"},
+			HideDefault: true,
+		},
+		&cli.BoolFlag{
+			Name: "repl",
+			Usage: "start a repl with the configuration of the profile loaded instead of rebuilding (remote is ignored)",
+			Aliases: []string{"r"},
 			HideDefault: true,
 		},
 			
