@@ -278,7 +278,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 		nix := exec.Command(
 			"nix", "copy",
-			"--to", "ssh-ng://%s" + profileData.TargetHost,
+			"--to", "ssh-ng://" + profileData.TargetHost,
 			"--no-check-sigs",
 			outPath,
 		)
