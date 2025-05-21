@@ -7,14 +7,15 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 
 type Profile int
 
 
-func (g *Profiles) fileToProfile(fileName string) (profile Profile, ok bool) {
-	fileName, found := strings.CutPrefix(fileName, g.name + "-")
+func (p *Profiles) fileToProfile(fileName string) (profile Profile, ok bool) {
+	fileName, found := strings.CutPrefix(fileName, p.name + "-")
 	if !found {
 		return
 	}
@@ -32,14 +33,14 @@ func (g *Profiles) fileToProfile(fileName string) (profile Profile, ok bool) {
 	return Profile(index), true
 }
 
-func (g *Profiles) Current() (profile Profile, err error) {
-	currentProfileLink := filepath.Join(g.directory, g.name);
+func (p *Profiles) Current() (profile Profile, err error) {
+	currentProfileLink := filepath.Join(p.directory, p.name);
 	currentProfile, err := os.Readlink(currentProfileLink)
 	if err != nil {
 		return
 	}
 
-	profile, ok := g.fileToProfile(currentProfile)
+	profile, ok := p.fileToProfile(currentProfile)
 	if !ok {
 		return profile, errors.New(currentProfile + " points to an invalid profile (is your system broken?)")
 	}
@@ -47,12 +48,12 @@ func (g *Profiles) Current() (profile Profile, err error) {
 	return
 }
 
-func (g *Profiles) Previous(cur Profile, n int) (Profile, error) {
+func (p *Profiles) Previous(cur Profile, n int) (Profile, error) {
 	// Binary search is actually not faster here, since the current profile
 	// is very likely to be somewhere near the start
-	for i, profile := range g.Data {
+	for i, profile := range p.Data {
 		if profile == cur {
-			left := len(g.Data) - 1 - i
+			left := len(p.Data) - 1 - i
 			if left < n {
 				return profile, errors.New(fmt.Sprintf(
 					"Looking for a profile %d before the current (%d), but there are only %d left",
@@ -60,17 +61,26 @@ func (g *Profiles) Previous(cur Profile, n int) (Profile, error) {
 				))
 			}
 			
-			return g.Data[i + n], nil
+			return p.Data[i + n], nil
 		}
 	}
 
 	return 0, errors.New("Profile loop ended without finding current")
 }
 
-func (g *Profiles) ProfilePath(profile Profile) string {
-	return fmt.Sprintf("%s/%s-%d-link", g.directory, g.name, profile)
+func (p *Profiles) ProfilePath(profile Profile) string {
+	return fmt.Sprintf("%s/%s-%d-link", p.directory, p.name, profile)
 }
 
-func (g *Profiles) OutPath(profile Profile) (string, error) {
-	return os.Readlink(g.ProfilePath(profile))
+func (p *Profiles) OutPath(profile Profile) (string, error) {
+	return os.Readlink(p.ProfilePath(profile))
+}
+
+func (p *Profiles) BuildDate(profile Profile) (t time.Time, err error) {
+	stat, err := os.Lstat(p.ProfilePath(profile))
+	if err != nil {
+		return
+	}
+
+	return stat.ModTime(), nil
 }

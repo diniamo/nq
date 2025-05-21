@@ -5,6 +5,9 @@ import (
 	"os"
 	"slices"
 	"sort"
+
+	"github.com/diniamo/nq/internal/log"
+	"github.com/fatih/color"
 )
 
 
@@ -25,43 +28,49 @@ func NewProfiles(directory, name string) (profiles Profiles) {
 	return
 }
 
-func (g *Profiles) Populate() error {
-	entries, err := os.ReadDir(g.directory)
+func (p *Profiles) Populate() error {
+	entries, err := os.ReadDir(p.directory)
 	if err != nil {
 		return err
 	}
 
-	g.Data = make([]Profile, 0, len(entries))
+	p.Data = make([]Profile, 0, len(entries))
 	for _, entry := range entries {
-		if profile, ok := g.fileToProfile(entry.Name()); ok {
-			g.Data = append(g.Data, profile)
+		if profile, ok := p.fileToProfile(entry.Name()); ok {
+			p.Data = append(p.Data, profile)
 		}
 	}
 
 	return nil
 }
 
-func (g *Profiles) Sort() {
-	slices.Sort(g.Data)
+func (p *Profiles) Sort() {
+	slices.Sort(p.Data)
 }
 
-func (g *Profiles) ReverseSort() {
-	sort.Slice(g.Data, func(i, j int) bool {
-		return g.Data[i] > g.Data[j]
+func (p *Profiles) ReverseSort() {
+	sort.Slice(p.Data, func(i, j int) bool {
+		return p.Data[i] > p.Data[j]
 	})
 }
 
-func (g *Profiles) Print() error {
-	cur, err := g.Current()
+func (p *Profiles) Print() error {
+	cur, err := p.Current()
 	if err != nil {
 		return err
 	}
-		
-	for _, profile := range g.Data {
+
+	for _, profile := range p.Data {
+		date, err := p.BuildDate(profile)
+		if err != nil {
+			log.Warn(err)
+		}
+
+		line := fmt.Sprintf("%d - %d/%02d/%02d %02d:%02d:%02d\n", profile, date.Year(), date.Month(), date.Day(), date.Hour(), date.Minute(), date.Second())
 		if profile != cur {
-			fmt.Printf("%d\n", profile)
+			fmt.Print(line)
 		} else {
-			fmt.Printf("%d (current)\n", profile)
+			color.New(color.Bold).Print(line)
 		}
 	}
 

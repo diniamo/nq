@@ -23,9 +23,8 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return errors.New("Failed to get system profiles: " + err.Error())
 	}
 
-	p.ReverseSort()
-
 	if cmd.Bool("list") {
+		p.Sort()
 		err = p.Print()
 		if err != nil {
 			return err
@@ -33,6 +32,8 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		
 		return nil
 	}
+	
+	p.ReverseSort()
 
 	cur, err := p.Current()
 	if err != nil {
@@ -78,7 +79,7 @@ func main() {
 	cmd := cli.Command{
 		Name: "rollback",
 		Usage: "a convenience program for rolling back on NixOS",
-		ArgsUsage: "<generation (default: previous)>",
+		ArgsUsage: "<profile (default: previous)>",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name: "list",
@@ -88,8 +89,8 @@ func main() {
 			},
 			&cli.IntFlag {
 				Name: "to",
-				Usage: "the generation to roll back to - may be a negative, in which it's relative to the current generation",
-				Aliases: []string{"t", "generation", "g"},
+				Usage: "the profile to roll back to - may be a negative, in which it's relative to the current profile",
+				Aliases: []string{"t", "profile", "p"},
 				DefaultText: "previous",
 			},
 		},
