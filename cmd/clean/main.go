@@ -22,14 +22,17 @@ func doRemoveProfiles(p profiles.Profiles, displayName string) {
 		return
 	}
 
-	currentProfile, err := p.Current()
+	current, err := p.Current()
 	if err != nil {
 		log.Errorf("Failed to get current %s profile, skipping all: %s", displayName, err)
 		return
 	}
+	
+	previous, err := p.Previous(current, 1)
+	hasPrevious := err == nil
 
 	for _, profile := range p.Data {
-		if profile == currentProfile {
+		if profile == current || (hasPrevious && profile == previous) {
 			continue
 		}
 
