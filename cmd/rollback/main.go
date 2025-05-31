@@ -68,9 +68,12 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 	external.Nvd(curPath, newPath)
 
-	log.Messagef("Activating %d", to)
+	log.Messagef("Switching to and activating %d", to)
 
-	external.ActivateLocal(newPath)
+	err = external.ActivateRollback(&p, to)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -16,20 +16,20 @@ const UserProfiles = ".local/state/nix/profiles"
 
 
 type Profiles struct {
-	directory string
-	name string
+	Directory string
+	Name string
 	Data []Profile
 }
 
 
 func NewProfiles(directory, name string) (profiles Profiles) {
-	profiles.directory = directory;
-	profiles.name = name;
+	profiles.Directory = directory;
+	profiles.Name = name;
 	return
 }
 
 func (p *Profiles) Populate() error {
-	entries, err := os.ReadDir(p.directory)
+	entries, err := os.ReadDir(p.Directory)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,12 @@ func (p *Profiles) Print() error {
 			log.Warn(err)
 		}
 
-		line := fmt.Sprintf("%d - %d/%02d/%02d %02d:%02d:%02d\n", profile, date.Year(), date.Month(), date.Day(), date.Hour(), date.Minute(), date.Second())
+		path, err := p.OutPath(profile)
+		if err != nil {
+			log.Warn(err)
+		}
+
+		line := fmt.Sprintf("%d - %d/%02d/%02d %02d:%02d:%02d - %s\n", profile, date.Year(), date.Month(), date.Day(), date.Hour(), date.Minute(), date.Second(), path)
 		if profile != cur {
 			fmt.Print(line)
 		} else {

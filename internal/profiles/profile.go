@@ -14,8 +14,13 @@ import (
 type Profile int
 
 
+func (p Profile) String() string {
+	return strconv.Itoa(int(p))
+}
+
+
 func (p *Profiles) fileToProfile(fileName string) (profile Profile, ok bool) {
-	fileName, found := strings.CutPrefix(fileName, p.name + "-")
+	fileName, found := strings.CutPrefix(fileName, p.Name + "-")
 	if !found {
 		return
 	}
@@ -34,7 +39,7 @@ func (p *Profiles) fileToProfile(fileName string) (profile Profile, ok bool) {
 }
 
 func (p *Profiles) Current() (profile Profile, err error) {
-	currentProfileLink := filepath.Join(p.directory, p.name);
+	currentProfileLink := filepath.Join(p.Directory, p.Name);
 	currentProfile, err := os.Readlink(currentProfileLink)
 	if err != nil {
 		return
@@ -69,7 +74,7 @@ func (p *Profiles) Previous(cur Profile, n int) (Profile, error) {
 }
 
 func (p *Profiles) ProfilePath(profile Profile) string {
-	return fmt.Sprintf("%s/%s-%d-link", p.directory, p.name, profile)
+	return fmt.Sprintf("%s/%s-%d-link", p.Directory, p.Name, profile)
 }
 
 func (p *Profiles) OutPath(profile Profile) (string, error) {

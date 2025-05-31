@@ -224,7 +224,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 		log.Message("Activating configuration")
 
-		external.ActivateLocal(outPath)
+		external.ActivateSwitch(outPath)
 	} else {
 		fmt.Printf("(%s) Password: ", profileData.TargetHost)
 		password, err := term.ReadPassword(int(os.Stdin.Fd()))
@@ -303,7 +303,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			"ssh", profileData.TargetHost,
 			fmt.Sprintf(
 				"sudo --prompt= --stdin -- /bin/sh -c '%s'",
-				external.ActivationCommand(outPath),
+				external.ActivateSwitchCommand(outPath),
 			),
 		)
 		
