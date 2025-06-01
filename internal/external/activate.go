@@ -11,7 +11,7 @@ import (
 
 func ActivateSwitchCommand(path string) string {
 	return fmt.Sprintf(
-		"%s/bin/switch-to-configuration switch && nix-env --profile /nix/var/nix/profiles/system --set %s",
+		"nix-env --profile /nix/var/nix/profiles/system --set %s && %s/bin/switch-to-configuration switch",
 		path, path,
 	)
 }
@@ -36,8 +36,8 @@ func ActivateSwitch(path string) error {
 
 func ActivateRollback(profiles *profiles.Profiles, profile profiles.Profile) error {
 	command := fmt.Sprintf(
-		"%s/bin/switch-to-configuration switch && nix profile rollback --profile %s/%s --to %d",
-		profiles.ProfilePath(profile), profiles.Directory, profiles.Name, profile,
+		"nix profile rollback --profile /nix/var/nix/profiles/system --to %d && %s/bin/switch-to-configuration switch",
+		profile, profiles.ProfilePath(profile),
 	)
 	
 	activate := exec.Command("sudo", "--", "/bin/sh", "-c", command)
