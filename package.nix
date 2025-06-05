@@ -1,4 +1,4 @@
-{buildGoModule, commit, lib, makeBinaryWrapper, nix-output-monitor, nvd}:
+{buildGoModule, commit, lib, makeBinaryWrapper, nix-output-monitor, dix}:
 buildGoModule {
   pname = "nq";
   version = "0-unstable-${commit}";
@@ -16,9 +16,9 @@ buildGoModule {
 
   postFixup = ''
     wrapProgram $out/bin/rebuild \
-      --prefix PATH : ${lib.makeBinPath [nix-output-monitor nvd]}
+      --prefix PATH : ${lib.makeBinPath [nix-output-monitor dix]}
     wrapProgram $out/bin/rollback \
-      --prefix PATH : ${nvd}/bin
+      --prefix PATH : ${dix}/bin
   '';
 
   meta = {

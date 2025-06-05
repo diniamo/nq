@@ -66,7 +66,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 	log.Messagef("Comparing changes (%d -> %d)", cur, to)
 
-	external.Nvd(curPath, newPath)
+	external.Diff(curPath, newPath)
 
 	log.Messagef("Switching to and activating %d", to)
 

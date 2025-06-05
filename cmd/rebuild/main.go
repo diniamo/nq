@@ -220,7 +220,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	if profileData.TargetHost == "" {
 		log.Message("Comparing changes")
 
-		external.Nvd("/run/current-system", outPath)
+		external.Diff("/run/current-system", outPath)
 
 		log.Message("Activating configuration")
 
