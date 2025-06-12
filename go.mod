@@ -1,9 +1,10 @@
 module github.com/diniamo/nq
 
-go 1.23.4
+go 1.24.3
 
 require (
 	github.com/adrg/xdg v0.5.3
+	github.com/diniamo/glog v0.0.0-20250612150150-d4131bb73095
 	github.com/fatih/color v1.18.0
 	github.com/urfave/cli/v3 v3.3.2
 	golang.org/x/term v0.31.0

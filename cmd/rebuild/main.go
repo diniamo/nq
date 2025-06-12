@@ -12,13 +12,14 @@ import (
 	"path"
 	"strings"
 
-	"github.com/diniamo/nq/internal/external"
-	"github.com/diniamo/nq/internal/log"
-	"github.com/diniamo/nq/internal/process"
-
 	"github.com/adrg/xdg"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
+	log "github.com/diniamo/glog"
+	
+	"github.com/diniamo/nq/internal/external"
+	"github.com/diniamo/nq/internal/process"
+	"github.com/diniamo/nq/internal/message"
 )
 
 
@@ -169,7 +170,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 
-	log.Messagef("Building %s#%s", flake, configuration)
+	message.Stepf("Building %s#%s", flake, configuration)
 
 	
 	flakeRef := fmt.Sprintf(
@@ -218,11 +219,11 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 
 	if profileData.TargetHost == "" {
-		log.Message("Comparing changes")
+		message.Step("Comparing changes")
 
 		external.Diff("/run/current-system", outPath)
 
-		log.Message("Activating configuration")
+		message.Step("Activating configuration")
 
 		external.ActivateSwitch(outPath)
 	} else {
@@ -269,7 +270,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 
-		log.Messagef("Copying configuration to %s", profileData.TargetHost)
+		message.Stepf("Copying configuration to %s", profileData.TargetHost)
 
 		sshEnv := append(
 			os.Environ(),
@@ -297,7 +298,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 
-		log.Messagef("Activating configuration on %s", profileData.TargetHost)
+		message.Stepf("Activating configuration on %s", profileData.TargetHost)
 
 		ssh := exec.Command(
 			"ssh", profileData.TargetHost,

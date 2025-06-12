@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/diniamo/nq/internal/log"
+	log "github.com/diniamo/glog"
+	
 	"github.com/diniamo/nq/internal/process"
 	"github.com/diniamo/nq/internal/profiles"
+	"github.com/diniamo/nq/internal/message"
 )
 
 
@@ -51,7 +53,7 @@ func doRemoveProfiles(p profiles.Profiles, displayName string) {
 func main() {
 	// clean isn't meant to be run as root, this code path is for internal use
 	if process.IsElevated() {
-		log.Message("Cleaning system profiles")
+		message.Step("Cleaning system profiles")
 	
 		doRemoveProfiles(
 			profiles.NewProfiles(profiles.SystemProfiles, "system"),
@@ -74,7 +76,7 @@ func main() {
 	
 	home := os.Getenv("HOME")
 
-	log.Message("Cleaning user profiles")
+	message.Step("Cleaning user profiles")
 	
 	userProfilesDirectory := filepath.Join(home, profiles.UserProfiles)
 
@@ -84,7 +86,7 @@ func main() {
 	)
 
 	
-	log.Message("Cleaning home-manager profiles")
+	message.Step("Cleaning home-manager profiles")
 
 	doRemoveProfiles(
 		profiles.NewProfiles(userProfilesDirectory, "home-manager"),
@@ -92,7 +94,7 @@ func main() {
 	)
 
 
-	log.Message("Cleaning gcroots (.direnv, result)")
+	message.Step("Cleaning gcroots (.direnv, result)")
 
 	entries, err := os.ReadDir(gcrootsDirectory)
 	if err == nil {
@@ -120,7 +122,7 @@ func main() {
 	}
 
 	
-	log.Message("Running nix store gc")
+	message.Step("Running nix store gc")
 
 	nix := exec.Command("nix", "store", "gc")
 	nix.Stdout = os.Stdout

@@ -5,7 +5,7 @@ buildGoModule {
 
   src = lib.cleanSource ./.;
   
-  vendorHash = "sha256-M3w80FoM5ak5YtuW5PaB4t47unTC/OXS99Sk3/C7dtg=";
+  vendorHash = "sha256-xSs/7ROM9mUejRSsQdX3xOFbHssUbMR5++nagEPsmQU=";
   nativeBuildInputs = [makeBinaryWrapper];
 
   subPackages = [
