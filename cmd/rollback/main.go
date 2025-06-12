@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"os"
+	
+	"github.com/urfave/cli/v3"
+	log "github.com/diniamo/glog"
 
 	"github.com/diniamo/nq/internal/external"
-	"github.com/diniamo/nq/internal/log"
 	"github.com/diniamo/nq/internal/profiles"
-
-	"github.com/urfave/cli/v3"
+	"github.com/diniamo/nq/internal/message"
 )
 
 
@@ -52,7 +53,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	log.Messagef("%d -> %d", cur, to)
+	message.Stepf("%d -> %d", cur, to)
 
 	curPath, err := p.OutPath(cur)
 	if err != nil {
@@ -64,11 +65,11 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	log.Messagef("Comparing changes (%d -> %d)", cur, to)
+	message.Stepf("Comparing changes (%d -> %d)", cur, to)
 
 	external.Diff(curPath, newPath)
 
-	log.Messagef("Switching to and activating %d", to)
+	message.Stepf("Switching to and activating %d", to)
 
 	err = external.ActivateRollback(&p, to)
 	if err != nil {

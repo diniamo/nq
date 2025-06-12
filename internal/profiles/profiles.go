@@ -6,7 +6,8 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/diniamo/nq/internal/log"
+	log "github.com/diniamo/glog"
+	
 	"github.com/fatih/color"
 )
 

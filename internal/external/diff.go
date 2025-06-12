@@ -4,7 +4,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/diniamo/nq/internal/log"
+	log "github.com/diniamo/glog"
 )
 
 func Diff(from, to string)  {
