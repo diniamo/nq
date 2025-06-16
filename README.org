@@ -27,14 +27,14 @@ Extra features:
 
 To build, run one of:
 
-#+BEGIN_SRC sh
+#+BEGIN_SRC shell
 go build cmd/rebuild/main.go
 go build cmd/rollback/main.go  
 #+END_SRC
 
 then run the resulting executable file, or run directly with one of:
 
-#+BEGIN_SRC sh
+#+BEGIN_SRC shell
 go run cmd/rebuild/main.go
 go run cmd/rollback/main.go  
 #+END_SRC
