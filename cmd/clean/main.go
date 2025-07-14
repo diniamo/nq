@@ -86,11 +86,11 @@ func main() {
 	)
 
 	
-	message.Step("Cleaning home-manager profiles")
+	message.Step("Cleaning nix-home profiles")
 
 	doRemoveProfiles(
-		profiles.NewProfiles(userProfilesDirectory, "home-manager"),
-		"home-manager",
+		profiles.NewProfiles(userProfilesDirectory, "home"),
+		"nix-home",
 	)
 
 
