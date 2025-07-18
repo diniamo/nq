@@ -11,11 +11,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1749987708,
-        "narHash": "sha256-CCHWxQjronLhyt5MB2bb2vgmOgvjYaIr2HNbmUmT+gw=",
+        "lastModified": 1752617148,
+        "narHash": "sha256-cSmxpzj5bNcMgfxJQiYwcwKjCrsTHxY+loRi+pzpFd4=",
         "owner": "bloxx12",
         "repo": "dix",
-        "rev": "a98f3cac20b2716d56114f85f97cf5e904c037d2",
+        "rev": "bd3dc008bb38e5bb294068add3289678916d93af",
         "type": "github"
       },
       "original": {
