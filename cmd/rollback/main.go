@@ -86,7 +86,9 @@ func run(args *Args) error {
 
 	message.Stepf("Switching to and activating %d", to)
 
-	err = external.ActivateRollback(&p, to)
+	// We can't do an actual rollback, because systemd-boot relies on name sorting to determine the boot entry (last is used).
+	// Instead, we create a new profile as if it was a new build.
+	err = external.ActivateSwitch(newPath)
 	if err != nil {
 		return err
 	}
@@ -106,6 +108,7 @@ func main() {
 			return
 		case "-l", "--list":
 			args.list = true
+			goto run
 		case "-t", "--to":
 			if i + 1 == len(os.Args) {
 				log.Fatalf("Missing value for %s", arg)
@@ -117,11 +120,16 @@ func main() {
 			if err != nil {
 				log.Fatalf("Invalid value for %s: %s", arg, value)
 			}
+
+			i += 1
 		default:
 			log.Fatalf("Invalid argument: %s", arg)
 		}
+
+		i += 1
 	}
 
+run:
 	err := run(&args)
 	if err != nil {
 		log.Fatal(err)
