@@ -399,7 +399,7 @@ func main() {
 
 	err := run(&args)
 	if err != nil {
-		log.Fatal(err)
+		log.FatalColor.Println(err)
 		process.Exit(1)
 	}
 
