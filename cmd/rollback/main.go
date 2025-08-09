@@ -1,51 +1,66 @@
 package main
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"os"
-	
-	"github.com/urfave/cli/v3"
+	"strconv"
+
 	log "github.com/diniamo/glog"
 
 	"github.com/diniamo/nq/internal/external"
-	"github.com/diniamo/nq/internal/profiles"
 	"github.com/diniamo/nq/internal/message"
+	"github.com/diniamo/nq/internal/profiles"
 )
 
 
-func run(ctx context.Context, cmd *cli.Command) error {
+type Args struct {
+	list bool
+	to int
+}
+
+
+const usage = `Convenience program for rolling back on NixOS.
+
+Usage: rollback [option...]
+
+Options:
+  --help, -h  show this text and exit
+  --list, -l  list available profiles instead of rolling back
+  --to, -t int  the profile to roll back to
+                may be negative, in which case it's considered relative to the current profile
+                (default: -1)
+`
+
+
+func run(args *Args) error {
 	var err error
-	
+
 	p := profiles.NewProfiles(profiles.SystemProfiles, "system")
-	
+
 	err = p.Populate()
 	if err != nil {
 		return errors.New("Failed to get system profiles: " + err.Error())
 	}
 
-	if cmd.Bool("list") {
+	if args.list {
 		p.Sort()
 		err = p.Print()
 		if err != nil {
 			return err
 		}
-		
+
 		return nil
 	}
-	
+
 	p.ReverseSort()
 
 	cur, err := p.Current()
 	if err != nil {
 		return err
 	}
-	
-	to := profiles.Profile(cmd.Int("to"))
-	// HACK: is 0 a valid generation? I don't know how to check.
-	if to == 0 {
-		to = -1
-	}
+
+	to := profiles.Profile(args.to)
 	if to < 0 {
 		to, err = p.Previous(cur, -int(to))
 		if err != nil {
@@ -80,29 +95,35 @@ func run(ctx context.Context, cmd *cli.Command) error {
 }
 
 func main() {
-	cmd := cli.Command{
-		Name: "rollback",
-		Usage: "a convenience program for rolling back on NixOS",
-		ArgsUsage: "<profile (default: previous)>",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name: "list",
-				Usage: "list available profiles instead of rolling back",
-				Aliases: []string{"l"},
-				HideDefault: true,
-			},
-			&cli.IntFlag {
-				Name: "to",
-				Usage: "the profile to roll back to - may be a negative, in which it's relative to the current profile",
-				Aliases: []string{"t", "profile", "p"},
-				DefaultText: "previous",
-			},
-		},
-		Action: run,
+	args := Args{to: -1}
+
+	for i := 1; i < len(os.Args); {
+		arg := os.Args[i]
+
+		switch arg {
+		case "-h", "--help":
+			fmt.Print(usage)
+			return
+		case "-l", "--list":
+			args.list = true
+		case "-t", "--to":
+			if i + 1 == len(os.Args) {
+				log.Fatalf("Missing value for %s", arg)
+			}
+			value := os.Args[i + 1]
+
+			var err error
+			args.to, err = strconv.Atoi(value)
+			if err != nil {
+				log.Fatalf("Invalid value for %s: %s", arg, value)
+			}
+		default:
+			log.Fatalf("Invalid argument: %s", arg)
+		}
 	}
 
-	if err := cmd.Run(context.Background(), os.Args); err != nil {
+	err := run(&args)
+	if err != nil {
 		log.Fatal(err)
-		os.Exit(1)
 	}
 }
