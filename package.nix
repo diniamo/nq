@@ -4,8 +4,8 @@ buildGoModule {
   version = "0-unstable-${commit}";
 
   src = lib.cleanSource ./.;
-  
-  vendorHash = "sha256-xSs/7ROM9mUejRSsQdX3xOFbHssUbMR5++nagEPsmQU=";
+
+  vendorHash = "sha256-phpO1ONS+u3X6CCi9+s4Hv99PX8KJe2HC80FT9s8298=";
   nativeBuildInputs = [makeBinaryWrapper];
 
   subPackages = [
