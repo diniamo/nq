@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/gob"
 	_ "embed"
 	"errors"
@@ -13,15 +12,24 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
-	"github.com/urfave/cli/v3"
 	"golang.org/x/term"
 	log "github.com/diniamo/glog"
-	
+
 	"github.com/diniamo/nq/internal/external"
 	"github.com/diniamo/nq/internal/process"
 	"github.com/diniamo/nq/internal/message"
 )
 
+
+type Args struct {
+	profile string
+	saveDefault bool
+	repl bool
+	flake string
+	configuration string
+	targetHost string
+	extra []string
+}
 
 type Profile struct {
 	Flake string
@@ -35,13 +43,30 @@ type Data struct {
 }
 
 
+const usage = `Convenience program for rebuilding on NixOS.
+
+Usage: rebuild [option...] [profile]
+
+Options:
+  --help, -h                  show this text and exit
+  --save-default, -s          use the passed profile by default on subsequence runs
+  --repl, -r                  start a repl with the configuration instead of rebuilding (remote is ignored)
+  --flake, -f path            path of the flake
+  --configuration, -c string  NixOS configuration to build
+  --target-host, -t string    remote to deploy the built configuration on
+  ...                         all non-recognized options are passed to the Nix build command
+                              these aren't saved between runs
+
+Profile: an arbitrary name to save passed values to
+`
+
 //go:embed repl.nix
 var replNix string
 
 
 func loadData(path string) (ret Data) {
 	file, err := os.Open(path)
-	
+
 	if err == nil {
 		defer file.Close()
 
@@ -58,10 +83,10 @@ func loadData(path string) (ret Data) {
 
 func saveData(path string, data Data) {
 	file, err := os.Create(path)
-	
+
 	if err == nil {
 		defer file.Close()
-		
+
 		encoder := gob.NewEncoder(file)
 		err = encoder.Encode(data)
 		if err != nil {
@@ -73,77 +98,64 @@ func saveData(path string, data Data) {
 }
 
 
-func run(ctx context.Context, cmd *cli.Command) error {
+func run(args *Args) error {
 	dataPath := path.Join(xdg.DataHome, "rebuild-profiles.gob")
 	data := loadData(dataPath)
-			
 	save := false
 
 
-	var profile string
-	if passedProfile := cmd.StringArg("profile"); passedProfile != "" {
-		profile = passedProfile
-		
-		if data.DefaultProfile == "" || cmd.Bool("save-default") {
-			data.DefaultProfile = profile
+	var profileName string
+	if args.profile != "" {
+		profileName = args.profile
+
+		if data.DefaultProfile == "" || args.saveDefault {
+			data.DefaultProfile = profileName
 			save = true
 		}
-	} else {
-		if data.DefaultProfile != "" {
-			profile = data.DefaultProfile
-		} else {
-			return errors.New("Missing profile")
-		}
+	} else if data.DefaultProfile != "" {
+		profileName = data.DefaultProfile
 	}
 
-	
-	profileData := data.Profiles[profile]
+
+	var profile Profile
+	if profileName != "" {
+		profile = data.Profiles[profileName]
+	}
 	updateProfile := false
 
-	flake := cmd.String("flake")
-	if flake != "" {
-		profileData.Flake = flake
+	if args.flake != "" {
+		profile.Flake = args.flake
 		updateProfile = true
-	} else {
-		flake = profileData.Flake
+	}
+	if args.configuration != "" {
+		profile.Configuration = args.configuration
+		updateProfile = true
+	}
+	if args.targetHost != "" {
+		profile.TargetHost = args.targetHost
+		updateProfile = true
 	}
 
-	configuration := cmd.String("configuration")
-	if configuration != "" {
-		profileData.Configuration = configuration
-		updateProfile = true
-	} else {
-		configuration = profileData.Configuration
-	}
-	
-	targetHost := cmd.String("target-host")
-	if targetHost != "" {
-		profileData.TargetHost = targetHost
-		updateProfile = true
-	} else {
-		targetHost = profileData.TargetHost
-	}
-	
-	if profileData.Flake == "" {
+	if profile.Flake == "" {
 		return errors.New("Missing flake")
 	}
-	if profileData.Configuration == "" {
+	if profile.Configuration == "" {
 		return errors.New("Missing configuration")
 	}
 
-	if updateProfile {
-		data.Profiles[profile] = profileData
+	if updateProfile && profileName != "" {
+		data.Profiles[profileName] = profile
 		save = true
+	}
+	if save {
+		saveData(dataPath, data)
 	}
 
 
-	if save { saveData(dataPath, data) }
-
-
-	if cmd.Bool("repl") {
+	if args.repl {
 		replacer := strings.NewReplacer(
-			"@flake@", flake,
-			"@configuration@", configuration,
+			"@flake@", profile.Flake,
+			"@configuration@", profile.Configuration,
 
 			"@blue@", "\033[34;1m",
 			"@reset@", "\033[0m",
@@ -156,7 +168,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 		nix.Stdin = os.Stdin
 		nix.Stdout = os.Stdout
 		nix.Stderr = os.Stderr
-		
+
 		err := nix.Run()
 		if err != nil {
 			if _, ok := err.(*exec.ExitError); ok {
@@ -170,38 +182,35 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	}
 
 
-	message.Stepf("Building %s#%s", flake, configuration)
+	message.Stepf("Building %s#%s", profile.Flake, profile.Configuration)
 
-	
+
 	flakeRef := fmt.Sprintf(
 		"%s#nixosConfigurations.%s.config.system.build.toplevel",
-		profileData.Flake, profileData.Configuration,
+		profile.Flake, profile.Configuration,
 	)
-	
-	var nixOut bytes.Buffer
-	
-	nom := exec.Command(
-		"nom", "build",
-		"--no-link", "--print-out-paths",
-		flakeRef,
-	)
+
+	nixArgs := []string{"build", flakeRef, "--no-link", "--print-out-paths"}
+	if args.extra != nil {
+		nixArgs = append(nixArgs, args.extra...)
+	}
+
+	nom := exec.Command("nom", nixArgs...)
 	nom.Stderr = os.Stderr
+
+	var nixOut bytes.Buffer
 	nom.Stdout = &nixOut
 
 	err := nom.Run()
 
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			process.Exit(1)
+			return errors.New("nom: non-zero exit code")
 		}
 
 		log.Warnf("Failed to run nom: %s", err)
 
-		nix := exec.Command(
-			"nix", "build",
-			"--no-link", "--print-out-paths",
-			flakeRef,
-		)
+		nix := exec.Command("nix", nixArgs...)
 		nix.Stderr = os.Stderr
 		nix.Stdout = &nixOut
 
@@ -214,11 +223,13 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	
-	outPath := strings.TrimRight(nixOut.String(), "\n")
+
+	outPath := nixOut.String()
+	// Trim newline
+	outPath = outPath[:len(outPath)-1]
 
 
-	if profileData.TargetHost == "" {
+	if profile.TargetHost == "" {
 		message.Step("Comparing changes")
 
 		external.Diff("/run/current-system", outPath)
@@ -227,7 +238,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 		external.ActivateSwitch(outPath)
 	} else {
-		fmt.Printf("(%s) Password: ", profileData.TargetHost)
+		fmt.Printf("(%s) Password: ", profile.TargetHost)
 		password, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return err
@@ -270,7 +281,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 
-		message.Stepf("Copying configuration to %s", profileData.TargetHost)
+		message.Stepf("Copying configuration to %s", profile.TargetHost)
 
 		sshEnv := append(
 			os.Environ(),
@@ -279,7 +290,7 @@ func run(ctx context.Context, cmd *cli.Command) error {
 
 		nix := exec.Command(
 			"nix", "copy",
-			"--to", "ssh-ng://" + profileData.TargetHost,
+			"--to", "ssh-ng://" + profile.TargetHost,
 			"--no-check-sigs",
 			outPath,
 		)
@@ -298,18 +309,18 @@ func run(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 
-		message.Stepf("Activating configuration on %s", profileData.TargetHost)
+		message.Stepf("Activating configuration on %s", profile.TargetHost)
 
 		ssh := exec.Command(
-			"ssh", profileData.TargetHost,
+			"ssh", profile.TargetHost,
 			fmt.Sprintf(
 				"sudo --prompt= --stdin -- /bin/sh -c '%s'",
 				external.ActivateSwitchCommand(outPath),
 			),
 		)
-		
+
 		ssh.Env = sshEnv
-		
+
 		sshIn, err := ssh.StdinPipe()
 		if err != nil {
 			return err
@@ -338,52 +349,56 @@ func run(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
+func safeValue(index int, option string) string {
+	if index >= len(os.Args) {
+		log.Fatalf("Missing value for %s", option)
+	}
+
+	return os.Args[index]
+}
+
 func main() {
-	cmd := cli.Command{
-		Name: "rebuild",
-		Usage: "a convenience program for rebuilding on NixOS",
-		Action: run,
-		ArgsUsage: "<profile>",
+	args := Args{}
+
+	for i := 1; i < len(os.Args); {
+		arg := os.Args[i]
+
+		if arg[0] != '-' {
+			args.profile = arg
+			goto next
+		}
+
+		switch arg {
+		case "-h", "--help":
+			fmt.Print(usage)
+			return
+		case "-s", "--save-default":
+			args.saveDefault = true
+		case "-r", "--repl":
+			args.repl = true
+		case "-f", "--flake":
+			args.flake = safeValue(i + 1, arg)
+			i += 1
+		case "-c", "--configuration":
+			args.configuration = safeValue(i + 1, arg)
+			i += 1
+		case "-t", "--target-host":
+			args.targetHost = safeValue(i + 1, arg)
+			i += 1
+		default:
+			if args.extra == nil {
+				args.extra = []string{arg}
+			} else {
+				args.extra = append(args.extra, arg)
+			}
+		}
+
+	next:
+		i += 1
 	}
 
-	cmd.Flags = []cli.Flag{
-		&cli.BoolFlag{
-			Name: "save-default",
-			Usage: "use the selected profile by default on subsequent runs",
-			Aliases: []string{"s"},
-			HideDefault: true,
-		},
-		&cli.BoolFlag{
-			Name: "repl",
-			Usage: "start a repl with the configuration of the profile loaded instead of rebuilding (remote is ignored)",
-			Aliases: []string{"r"},
-			HideDefault: true,
-		},
-			
-		&cli.StringFlag{
-			Name: "flake",
-			Usage: "the path of the flake to use",
-			Aliases: []string{"f"},
-		},
-		&cli.StringFlag{
-			Name: "configuration",
-			Usage: "the NixOS configuration to build",
-			Aliases: []string{"c"},
-		},
-		&cli.StringFlag{
-			Name: "target-host",
-			Usage: "the remote to deploy the built configuration to",
-			Aliases: []string{"t"},
-		},
-	}
-	cmd.Arguments = []cli.Argument{
-		&cli.StringArg{
-			Name: "profile",
-			UsageText: "the profile to act on",
-		},
-	}
-
-	if err := cmd.Run(context.Background(), os.Args); err != nil {
+	err := run(&args)
+	if err != nil {
 		log.Fatal(err)
 		process.Exit(1)
 	}
